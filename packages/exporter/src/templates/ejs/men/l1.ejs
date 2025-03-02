@@ -1,0 +1,30 @@
+<%_
+    const sortByMonthYear = (arr, prop = "importedDate") => {
+        return arr.sort((a,b)=>{
+            return new Date("01-" + a[prop]) - new Date("01-" + b[prop]);
+        });
+    }
+_%>
+    "Men" : {
+        "Highlight": "<%= product.presentation.productLongDescription.find(item => item.locale === locale).value %>",
+        "Hidden Detail" : "",
+        "Additional Information 1" : "",
+        "Additional Information 2" : "",
+        "Additional Information 3" : "",
+        "Size Tip" : "",
+        "*Component Count" : <%= product.base.fact.numberOfPieces %>,
+        "*Country of Origin" : "<%= article.articleInformation.base.order.summary.salesMarkets[0].channels[0].supplierProduction.countriesOfProduction[0].countryOfProductionName %>",
+        "Imported By" : "<%= sortByMonthYear(article.articleInformation.base.order.supplierSummary.salesMarkets[0].channels[0].importerInfo)[0].importedBy %>",
+        "Manufactured By" : "",
+        "*Marketed By" : "",
+        "*Net Quantity" : <%= product.base.fact.numberOfPieces %>,
+        "Sold By" : "H&M Hennes & Mauritz Retail Pvt. Ltd. A-wing, D-3, 2nd Floor District Centre Saket New Delhi -110017 India",
+        "Multi Brick" : "",
+        "Multi Vertical" : "",
+        "Multi Segment" :  "",
+        "Character" : "",
+        "*Package Contains" : "<%= product.base.fact.salesMode %> <%= product.presentation.productPresentationProductType[0].values.find(item => item.locale === locale).value %>",
+        "Mood" : "",
+        "USP" : "",
+        "Trend Theme" : "<%= product.online.mainCategory.code.replaceAll("_",", ") %>"
+    }

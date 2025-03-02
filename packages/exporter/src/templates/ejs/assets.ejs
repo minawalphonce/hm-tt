@@ -1,0 +1,33 @@
+<%_
+    function images(article, size = "extra_extra_large"){
+        return article.asset.assets
+                    ?.flatMap(asset => {
+                        return asset?.locations?.flatMap(l => l?.renditions)
+                    })
+                    ?.filter(rendition => rendition?.type === size)
+                    ?.map(rendition => rendition?.path);
+    }
+
+    function manufacturedBy(article){
+        const pu = article.articleInformation.base.order.supplierSummary?.salesMarkets[0]?.channels[0]?.supplierAndProductionUnits
+            ?.filter( spu => {
+                return spu?.productionUnits?.some(pu => pu.productionUnitTypes.some( put => put.typeId === 101) )
+            })
+            [0]?.productionUnits?.filter(pu => pu.productionUnitTypes.some( put => put.typeId === 101) )[0];
+        if(pu){
+            return `${pu.productionUnitName} ${pu.address.addressStreetLine1 || ""} ${pu.address.addressStreetLine2 || ""} ${pu.address.city || ""} ${pu.address.postalCode || ""}`
+        }   
+    }
+
+    const imgs = images(article);
+_%>
+{
+"variantId" : "<%- variant %>",
+<%_ 
+        for(let imgNdx = 0; imgNdx < 8; imgNdx++){
+_%>
+"image<%- imgNdx + 1%>" : "<%- imgs[imgNdx] %>",
+<%_ } _%>
+"productId" : "<%- article.productId %>", 
+"articleId" : "<%- article.articleId %>"
+},

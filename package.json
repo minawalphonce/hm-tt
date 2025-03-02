@@ -1,0 +1,20 @@
+{
+  "name": "anubis",
+  "version": "1.0.0",
+  "author": "Mina W Alphonce",
+  "license": "MIT",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "gui": "yarn workspace @anubis/gui",
+    "load": "yarn workspace @anubis/loader",
+    "export": "yarn workspace @anubis/exporter"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.4",
+    "esrun": "^3.2.26"
+  },
+  "packageManager": "yarn@1.22.22"
+}

@@ -1,0 +1,15 @@
+[
+{%- for product in products %}
+    {%-  for article in product.tree.trees[0].articles -%}
+        {%- if article.articleInformation.seasons contains season %}
+            {%- for variant in article.articleInformation.base.order.summary.salesMarkets[0].channels[0].variants  %}
+    {
+            {% render 'core', product: product, article :article, variant :variant  %}
+    } 
+            {%- if forloop.last != true %}, {% endif %}
+            {%- endfor -%}
+        {%- if forloop.last != true %}, {% endif %}
+        {% endif %}
+    {%- endfor -%}
+{%- endfor -%}
+]

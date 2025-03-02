@@ -1,0 +1,22 @@
+ <%_
+    let render = true;
+    //let l1 = null,l2 = null, l3 = null;
+    //if(product.presentation.productCategorizationsMapped){
+    //    l1 = product.presentation.productCategorizationsMapped.department.toLowerCase();
+    //    l2 = product.presentation.productCategorizationsMapped.mainCategory.toLowerCase();
+    //    l3 = product.presentation.productCategorizationsMapped.subCategory.toLowerCase();
+    //    render = true;
+    //}
+    //else if(product.online.mainCategory){
+    //    const arr = product.online.mainCategory.code.split("_");
+    //    l1 = arr[0];
+    //    l2 = arr[1];
+    //    l3 = arr[2];
+    //    render = true;
+    //}
+ _%>
+ <%_ if(render) { _%>
+{
+    <%- include(`women/westernwear/tops.ejs`, { product,variant,article, seasons,locale }) _%>
+},
+ <%_ } _%>

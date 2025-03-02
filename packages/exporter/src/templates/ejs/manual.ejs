@@ -1,0 +1,328 @@
+<%_
+
+    const ageGroupMap = {
+        "1": "adult",
+        "2": "kids",
+        "3": "adult",
+        "4": "kids",
+        "5": "infant",
+        "6": "adult"
+    }
+    const genderMap = {
+        "1": "male",
+        "2": "male",
+        "3": "female",
+        "4": "female",
+        "5": "unisex",
+        "6": "unisex"
+    }
+
+    function getLocaleFromProp(prop){
+        if(Array.isArray(prop)){
+            const i = prop.find(v => v.locale === locale);
+            if(i && i.value)
+                return i?.value;
+            return prop.map(item => item.values?.find(v => v.locale === locale)?.value).join(",");
+        }
+        else {
+            return prop?.values?.find(v => v.locale === locale).value;
+        }
+    }
+    function careInstructions(article){
+         let presentation = article.articleInformation.presentation;
+         if (!presentation) {
+            presentation = article.presentation;
+        }
+        if (!presentation)
+            return;
+        
+        return [
+            getLocaleFromProp(presentation.articleCareInstructionsDryCleaning),
+            getLocaleFromProp(presentation.articleCareInstructionsWashingInstruction),
+            getLocaleFromProp(presentation.articleCareInstructionsBleach),
+            getLocaleFromProp(presentation.articleCareInstructionsIroning),
+            getLocaleFromProp(presentation.articleAdditionalCareInstructions),
+            getLocaleFromProp(presentation.articleCareInstructionsDrying)
+        ].join(",")
+    }
+    function composition(article){
+        const compositions = article.articleInformation.presentation?.articleCompositionList?.compositions;
+        return compositions?.map(cmp => {
+            const material = cmp.materials?.map(mat => `${mat.percentage}% ${getLocaleFromProp(mat.values)}`)
+            return `${getLocaleFromProp(cmp?.compositionType)} ${material}`;
+        }).join(", ")
+    }
+    function longDesc(article,product){
+        return getLocaleFromProp(article.articleInformation.presentation?.articleLongDescription) || 
+            getLocaleFromProp(product.presentation.productLongDescription);
+    }
+    function getImageUrl(article, assetType, face, size = "extra_extra_large"){
+        return article.articleInformation.asset.assets
+                            ?.filter(asset => asset.assetType === assetType && (!face || asset.angle.facing === face))
+                            ?.flatMap(asset => {
+                                   return asset.locations.filter(l => l.id === "PublicAssetService").flatMap(l => l?.renditions)
+                            })
+                            ?.filter(rendition => rendition?.type === size)[0]?.path;
+    }
+    function getHeroImageUrl(article,size = "extra_extra_large"){
+        return article.articleInformation.asset.assets
+                            ?.filter(asset => asset.isHero)
+                            ?.flatMap(asset => {
+                                   return asset.locations.filter(l => l.id === "PublicAssetService").flatMap(l => l?.renditions)
+                            })
+                            ?.filter(rendition => rendition.type === size)[0]?.path;
+    }
+    function sizeList(article){
+        return article.articleInformation.base.order?.orders[0]?.salesMarkets[0]?.channels[0]?.variants?.map(v => v?.size?.sizeName)?.join(",");
+    }
+    function specialFeatures(article,product){
+       const productArray =  ["productAccessoriesStyle","productBenefits","productCollarStyle","productFeature","productFit","productFootwearStyle","productFunction","productGarmentLength","productHeelHeight","productHomewareStyle","productNecklineStyle","productShapes","productSleeveLength","productSleeveStyle"];
+       const atricleArr = ["articleLegType","articleWaistType","articleWash"];
+
+       return [
+        ...productArray.map(prop =>  getLocaleFromProp(product.presentation[prop])),
+        ...atricleArr.map(prop => getLocaleFromProp(article.articleInformation[prop]))
+       ].filter(i => !!i).join(",");
+    }
+    function style(article, product){
+        return getLocaleFromProp(product.presentation.productStyle) || getLocaleFromProp(article.articleInformation.articleStyle);
+    }
+    function supplierName(article){
+        const arr = article.articleInformation.base.order?.orders
+            ?.map(order => order?.supplier?.supplierName) || [];
+
+        return arr.filter((item, index) => arr.indexOf(item) === index);
+    }
+    function usageRights(article){
+        return article.articleInformation.asset.assets.map(asset => asset.usageRights[0]?.toDate).join(",");
+    }
+    function gtinCode(article, variant){
+        const sellableVariant = article.articleInformation.base.sales.sellableItem.variants.find(item => item.variantId === variant.variantId);
+        const gtin = sellableVariant?.globalTradeItemNumber?.globalTradeItemNumberType?.find(item => seasons.includes(item.season) && item.GTINCategory === 'IE');
+        return gtin?.GTIN;
+    }
+    function firstgtin(article, variant){
+        const sellableVariant = article.articleInformation.base.sales.sellableItem?.variants?.find(item => item.variantId === variant.variantId);
+        return sellableVariant?.firstGTIN;
+    }
+    function importCode(article,variant){
+        const sellableVariant = article.articleInformation.base.sales.sellableItem.variants.find(item => item.variantId === variant.variantId);
+        return sellableVariant?.salesData?.salesDataType[0]?.importCode;
+    }
+    function images(article, size = "extra_extra_large"){
+        return article.articleInformation.asset.assets
+                    ?.flatMap(asset => {
+                        return asset.locations.filter(l => l.id === "PublicAssetService").flatMap(l => l?.renditions)
+                    })
+                    ?.filter(rendition => rendition?.type === size)
+                    ?.map(rendition => rendition?.path);
+    }
+    function imporedBy(article){
+        
+        const sortByMonthYear = (arr, prop = "importedDate") => {
+            return arr?.sort((a,b)=>{
+                return new Date("01-" + a[prop]) - new Date("01-" + b[prop]);
+            }) || [];
+        }
+        return sortByMonthYear(article.articleInformation.base.order.supplierSummary?.salesMarkets[0]?.channels[0]?.importerInfo)[0]?.importedBy;
+    }
+    function manufacturedBy(article){
+        const pu = article.articleInformation.base.order.supplierSummary?.salesMarkets[0]?.channels[0]?.supplierAndProductionUnits
+            ?.filter( spu => {
+                return spu?.productionUnits?.some(pu => pu.productionUnitTypes.some( put => put.typeId === 101) )
+            })
+            [0]?.productionUnits?.filter(pu => pu.productionUnitTypes.some( put => put.typeId === 101) )[0];
+        if(pu){
+            return `${pu.productionUnitName} ${pu.address.addressStreetLine1 || ""} ${pu.address.addressStreetLine2 || ""} ${pu.address.city || ""} ${pu.address.postalCode || ""}`
+        }   
+    }
+_%>
+<%_ for(const article of product.tree.trees[0].articles) { _%> 
+        <%_ if(article.articleInformation.seasons.some(s => seasons.includes(s))) { _%>
+                <%_ for(const variant of article.articleInformation.base.order.summary.salesMarkets[0].channels[0].variants) { _%>
+    {
+        "article" : "<%- article.articleId %>",
+        "AGECCOOFabricConstruction" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleComplianceDetails?.frenchAntiWasteLawForaCircularEconomy?.traceability?.articleMaterialCountryOfOrigin) %>",
+        "AGECCOOFabricDying" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleComplianceDetails?.frenchAntiWasteLawForaCircularEconomy.traceability?.articleMaterialCountryOfOrigin) %>",
+        "AGECCOOFabricPrinting" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleComplianceDetails?.frenchAntiWasteLawForaCircularEconomy.traceability?.articleMaterialCountryOfOrigin) %>",
+        "AGECCOPFinishing" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleComplianceDetails?.frenchAntiWasteLawForaCircularEconomy.traceability?.articleCountryOfProduction[0]) %>",
+        "AGECCOPStitchingOfTheUpper" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleComplianceDetails?.frenchAntiWasteLawForaCircularEconomy.traceability?.articleCountryOfProduction[0]) %>",
+        "AGECMicroplasticfibres" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleComplianceDetails?.frenchAntiWasteLawForaCircularEconomy?.article?.materialEnvironmentImpact) %>",
+        "AGECPackagingRecycledContentDescription" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleComplianceDetails?.frenchAntiWasteLawForaCircularEconomy?.packaging?.packagingAggregatedRecycledMaterialsDescription) %>",
+        "AGECPackagingRecycledContentPercentage" : "<%- article.articleInformation.presentation?.articleComplianceDetails?.frenchAntiWasteLawForaCircularEconomy?.packaging?.packagingAggregatedRecycledMaterialsPercentage %>",
+        "AGECRecycledContentDescription" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleComplianceDetails?.frenchAntiWasteLawForaCircularEconomy?.article?.articleAggregatedRecycledMaterialsPercentageDescription) %>",
+        "AGECRecycledContentPercentage" : "<%- article.articleInformation.presentation?.articleComplianceDetails?.frenchAntiWasteLawForaCircularEconomy?.article?.articleAggregatedRecycledMaterialsPercentage %>",
+        "ageGroup" : "<%- ageGroupMap[product.base.fact.customsCustomerGroup.customsCustomerGroupId] %>",
+        "articleColor" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleColor) %>",
+        "articleColorName" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleColorName) %>",
+        "articleCoverage" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleCoverage) %>",
+        "articleDisclaimer" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleDisclaimer) %>",
+        "articleEnergyClass" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleEnergyClass) %>",
+        "articleEnergyClassificationInterval" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleEnergyClassificationInterval) %>",
+        "articleEnergyConsumption" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleEnergyConsumption) %>",
+        "articleExternalColourID" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleExternalColourID) %>",
+        "articleExternalSupplierNumber" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleExternalSupplierNumber) %>",
+        "articleFinish" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleFinish) %>",
+        "articleFragrance" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleFragrance) %>",
+        "articleFragranceDescription" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleFragranceDescription) %>",
+        "articleFragranceFamily" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleFragranceFamily) %>",
+        "articleFragranceName" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleFragranceName) %>",
+        "articleHairType" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleHairType) %>",
+        "articleIngredient" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleIngredient) %>",
+        "articleKeyIngredients" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleKeyIngredients) %>",
+        "articleMaterialDetails" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleMaterialDetails) %>",
+        "articleNumber" : "<%- article.articleInformation.base?.fact.articleNumber %>",
+        "articleOccasion" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleOccasion) %>",
+        "articlePrintText" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articlePrintText) %>",
+        "articleQuality" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleQuality) %>",
+        "articleSkinTone" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleSkinTone) %>",
+        "articleSpf" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleSpf) %>",
+        "articleStyle" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleStyle) %>",
+        "articleTrending" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleTrending) %>",
+        "articleVisualDescription" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleVisualDescription) %>",
+        "careInstructions" : "<%- careInstructions(article) %>",
+        "category" : "<%- product.online.mainCategory?.code %>",
+        "colourCode" : "<%- article.articleInformation.base.fact.mainColour.colourCode %>",
+        "colourDescription" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleDescription) %>",
+        "colourGroup" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articlePresentationColorGroup) %>",
+        "colourGroupCode" : "<%- article.articleInformation.base.fact.mainColour.colourGroup %>",
+        "colourGroupName" : "<%- article.articleInformation.base.fact.mainColour.colourGroupName %>",
+        "colourHexCode" : "<%- article.articleInformation.presentation?.articleColorRgb %>",
+        "colourName" : "<%- article.articleInformation.base.fact.mainColour.colourGroupName %>",
+        "composition" : "<%- composition(article) %>",
+        "conceptName" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleLicenseItem?.values) %>",
+        "corporateBrandName" : "H&M",
+        "countryOfProduction" : "<%- article.articleInformation.base.order.summary.salesMarkets[0].channels[0]?.supplierProduction?.countriesOfProduction?.map(cop => cop?.countryOfProductionName)?.join(",")  %>",
+        "countryOfProductionISOCode" : "<%- article.articleInformation.base.order.summary.salesMarkets[0].channels[0]?.supplierProduction?.countriesOfProduction?.map(cop => cop?.countryOfProductionISOCode).join(",") %>",
+        "dateOfManufacture" : "<%- article.articleInformation.base.order.orders.map(o => o.orderDate).join(",") %>",
+        "departmentName" : "<%- product.base.fact?.division?.section?.department?.departmentName %>",
+        "deptNumber" : "<%-	product.base.fact?.division?.section?.department?.departmentNumber %>",
+        "divisionName" : "<%-	product.base.fact?.division?.divisionName %>",
+        "divisionNumber" : "<%-	product.base.fact?.division?.divisionNumber %>",
+        "garmentGroup" : "<%-	product.base.fact?.division?.section?.department?.garmentGroup?.garmentGroupName %>",
+        "garmentType" : "<%-	product.base.fact?.division?.section?.department?.garmentGroup?.garmentGroupName %>",
+        "gender" : "<%- genderMap[product.base.fact.customsCustomerGroup.customsCustomerGroupId] %>",
+        "graphicalAppearanceText" : "<%- article.articleInformation.base.fact.graphicalAppearance.graphicalAppearanceText %>",
+        "grossWeight" : "<%-	article.articleInformation.base?.measure?.grossWeight %>",
+        "hazmat" : "<%-	article.articleInformation.base.fact.hazmat?.class ? "TRUE" : "FALSE" %>",
+        "hazmatShort" : "<%-	article.articleInformation.base.fact.hazmat?.class ? "Y" : "N" %>",
+        <%_ 
+            const imgs = images(article);
+            for(let imgNdx = 0; imgNdx < 8; imgNdx++){
+        _%>
+        "image<%- imgNdx + 1%>" : "<%- imgs[imgNdx] %>",
+        <%_ } _%>
+        "internalProductName" : "<%- product.base.fact.productName %>",
+        "licenceCompanyId": "<%-	article.articleInformation.base.fact.licenceCompany?.licenceCompanyId %>",
+        "licenceCompanyName": "<%-	article.articleInformation.base.fact.licenceCompany?.licenceCompanyName %>",
+        "licenceItemName" : "<%-	article.articleInformation.base.fact.licenceCompany?.licenceItem?.licenceItemName %>",
+        "localOnlineDate" : "<%-	article.articleInformation.online?.salesMarkets[0]?.localOnlineDate %>",
+        "longDescription" : "<%-	longDesc(article,product) %>",
+        "modelHeight" : "<%- article.articleInformation.assets?.models?.modelHeight %>",
+        "netWeight" : "<%- article.articleInformation.base.fact.measure.netWeight %>",
+        "parentProductId" : "<%- product.productId %>",
+        "parentProductName" : "<%- getLocaleFromProp(product.presentation?.productNameLong) %>",
+        "sku" : "<%- variant.variantId %>",
+        "sizeName" : "<%- variant.size.sizeName %>",
+        "nameLong" : "<%- getLocaleFromProp(product.presentation?.productNameLong) || getLocaleFromProp(article.articleInformation.presentation?.articleNameLong) %>",
+        "pattern" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articlePattern)  %>",
+        "presentationArticleLicenseCompany" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleLicenseCompany) %>",
+        "presentationArticleLicenseItem" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleLicenseItem) %>",
+        "primaryCategory" : "<%- product.presentation?.productCategorizations?.find(cat => cat.isPrimary)?.name %>",
+        "productAccessoriesStyle" : "<%-	getLocaleFromProp(product.presentation?.productAccessoriesStyle) %>",
+        "productAgeGroup" : "<%-	getLocaleFromProp(product.presentation?.productAgeGroup) %>",
+        "productAssortmentType" : "<%-	getLocaleFromProp(product.presentation?.productAssortmentType) %>",
+        "productBeautyArea" : "<%-	getLocaleFromProp(product.presentation?.productBeautyArea) %>",
+        "productBenefits" : "<%-	getLocaleFromProp(product.presentation?.productBenefits) %>",
+        "productCareInstructionsDrycleaning" : "<%- getLocaleFromProp(product.presentation?.productCareInstructionsDrycleaning) %>",
+        "productCategorizations" : "<%- product.presentation?.productCategorizations.filter(cat => cat.key).map(cat => cat.key).join(",") %>",
+        "productClothingStyle" : "<%- getLocaleFromProp(product.presentation.productClothingStyle) %>",
+        "productCollarStyle" : "<%- getLocaleFromProp(product.presentation.productCollarStyle) %>",
+        "productCollection" : "<%- getLocaleFromProp(product.presentation.productCollection) %>",
+        "productConcept" : "<%- getLocaleFromProp(product.presentation.productConcept) %>",
+        "productConcern" : "<%- getLocaleFromProp(product.presentation.productConcern) %>",
+        "productContext" : "<%- getLocaleFromProp(product.presentation.productContext) %>",
+        "productCustomerGroup" : "<%- getLocaleFromProp(product.presentation.productCustomerGroup) %>",
+        "productDescriptiveLength" : "<%- getLocaleFromProp(product.presentation.productDescriptiveLength) %>",
+        "productDesignerCollection" : "<%- getLocaleFromProp(product.presentation.productDesignerCollection) %>",
+        "productDoesNotContain" : "<%- getLocaleFromProp(product.presentation.productDoesNotContain) %>",
+        "productEnvironment" : "<%- getLocaleFromProp(product.presentation.productEnvironment) %>",
+        "productExternalBrand" : "<%- getLocaleFromProp(product.presentation.productExternalBrand) %>",
+        "productFeature"	       : "<%- getLocaleFromProp(product.presentation.productFeature) %>",
+        "productFit"	           : "<%- getLocaleFromProp(product.presentation.productFit) %>",
+        "productFootwearStyle"	    : "<%- getLocaleFromProp(product.presentation.productFootwearStyle) %>",
+        "productForm"	            : "<%- getLocaleFromProp(product.presentation.productForm) %>",
+        "productFunction"	        : "<%- getLocaleFromProp(product.presentation.productFunction) %>",
+        "productGarmentLength"	    : "<%- getLocaleFromProp(product.presentation.productGarmentLength) %>",
+        "productGender"	            : "<%- getLocaleFromProp(product.presentation.productGender) %>",  
+        "productGroup"	            : "<%- getLocaleFromProp(product.presentation.productPresentationProductGroup) %>",
+        "productHeelHeight"	        : "<%- getLocaleFromProp(product.presentation.productHeelHeight) %>",
+        "productHomewareStyle"	    : "<%- getLocaleFromProp(product.presentation.productHomewareStyle) %>",
+        "productHowToUse"	        : "<%- getLocaleFromProp(product.presentation.productHowToUse) %>",
+        "productInstructionOfUse"	: "<%- getLocaleFromProp(product.presentation.productInstructionOfUse) %>",
+        "productKeyFabrics"	        : "<%- getLocaleFromProp(product.presentation.productKeyFabrics) %>",
+        "productKeyFibreTypes"	    : "<%- getLocaleFromProp(product.presentation.productKeyFibreTypes) %>",
+        "productKeyMaterialTypes"	: "<%- getLocaleFromProp(product.presentation.productKeyMaterialTypes) %>",
+        "productLegtype"	        : "<%- getLocaleFromProp(product.presentation.productLegtype) %>",
+        "productNameShort"	        : "<%- getLocaleFromProp(product.presentation.productNameShort) %>",
+        "productNecklineStyle"	    : "<%- getLocaleFromProp(product.presentation.productNecklineStyle) %>",
+        "productPersonalCareStyle"	: "<%- getLocaleFromProp(product.presentation.productPersonalCareStyle) %>",
+        "productProductSeriesName"	: "<%- getLocaleFromProp(product.presentation.productProductSeriesName) %>",
+        "productQuality"	        : "<%- getLocaleFromProp(product.presentation.productQuality) %>",
+        "productRoom"	            : "<%- getLocaleFromProp(product.presentation.productRoom) %>",
+        "productShapes"	            : "<%- getLocaleFromProp(product.presentation.productShapes) %>",
+        "productShortDescription"	: "<%- getLocaleFromProp(product.presentation.productShortDescription) %>",
+        "productSizeCategory"	    : "<%- getLocaleFromProp(product.presentation.productSizeCategory) %>",
+        "productSkinType"	        : "<%- getLocaleFromProp(product.presentation.productSkinType) %>",
+        "productSleeveLength"	    : "<%- getLocaleFromProp(product.presentation.productSleeveLength) %>",
+        "productSleeveStyle"	    : "<%- getLocaleFromProp(product.presentation.productSleeveStyle) %>",
+        "productSportsActivity"	    : "<%- getLocaleFromProp(product.presentation.productSportsActivity) %>",
+        "productSubBrandName"	    : "<%- getLocaleFromProp(product.presentation.productSubBrandName) %>",
+        "productSubFibres"	        : "<%- getLocaleFromProp(product.presentation.productSubFibres) %>",
+        "productType"	            : "<%- getLocaleFromProp(product.presentation.productPresentationProductType) %>",
+        "productTypeOfApplication"	: "<%- getLocaleFromProp(product.presentation.productTypeOfApplication) %>",
+        "productWaistRise"	        : "<%- getLocaleFromProp(product.presentation.productWaistRise) %>",
+        "productWaistType"	        : "<%- getLocaleFromProp(product.presentation.productWaistType) %>",
+        "psDetailAngle1" : "<%- getImageUrl(article,"StillMedia/DescriptiveDetail", 1) %>",
+        "psEcomLookAngle1"  : "<%- getImageUrl(article,"StillMedia/Lookbook",1) %>", 
+        "psEcomLookAngle2"  : "<%- getImageUrl(article,"StillMedia/Lookbook",2) %>",
+        "psEcomLookAngle3"  : "<%- getImageUrl(article,"StillMedia/Lookbook",3) %>",
+        "psEcomLookAngle4"  : "<%- getImageUrl(article,"StillMedia/Lookbook",4) %>",
+        "psEcomLookAngle5"  : "<%- getImageUrl(article,"StillMedia/Lookbook",5) %>",
+        "psEcomLookAngle6"  : "<%- getImageUrl(article,"StillMedia/Lookbook",6) %>",
+        "psEnvironmentalAngle1"  : "<%- getImageUrl(article,"StillMedia/Environmental",1) %>",
+        "psEnvironmentalAngle2" : "<%- getImageUrl(article,"StillMedia/Environmental",2)  %>",
+        "psEnvironmentalAngle3"  : "<%- getImageUrl(article,"StillMedia/Environmental",3) %>",
+        "psFabricSwatch" : "<%- getImageUrl(article,"StillMedia/Fabricswatch") %>",
+        "psProductAngle1" : "<%- getImageUrl(article,"StillMedia/DescriptiveStillLife",1) %>", 
+        "psProductAngle2" : "<%- getImageUrl(article,"StillMedia/DescriptiveStillLife",2) %>",
+        "psProductAngle3" : "<%- getImageUrl(article,"StillMedia/DescriptiveStillLife",3) %>",
+        "psProductAngle4" : "<%- getImageUrl(article,"StillMedia/DescriptiveStillLife",4) %>",
+        "psProductAngle5" : "<%- getImageUrl(article,"StillMedia/DescriptiveStillLife",5) %>",
+        "psProductAngle6" : "<%- getImageUrl(article,"StillMedia/DescriptiveStillLife",6) %>",
+        "recommendedRetailPrice"  : "<%- product.base.sales.sellPrice?.salesMarkets[0].channels[0].priceValue || 0 %>",
+        "recommendedRetailPriceCurrencyCode" : "<%- product.base.sales.sellPrice?.salesMarkets[0].channels[0].currencyISOCode || "INR" %>",
+        "seasons" : "<%- article.articleInformation.seasons.join(",")  %>",
+        "section" : "<%- product.base.fact.division.section.sectionName %>",
+        "sectionNumber" : "<%- product.base.fact.division.section.sectionNumber %>",
+        "selectedImage" : "<%- getHeroImageUrl(article) %>",
+        "sizeList" : "<%- sizeList(article) %>",
+        "specialFeatures" : "<%- specialFeatures(article, product)  %>",
+        "style" : "<%- style(article,product) %>",
+        "subIndex" : "<%- product.base.fact.indexGroup?.index?.subIndex?.subIndexCode %>",
+        "supplierName" : "<%- supplierName(article) %>",
+        "usageRightsEndDate" : "<%- usageRights(article) %>",
+        "warning" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleWarning?.warnings?.salesMarkets) %>",
+        "firstGTIN" : "<%- firstgtin(article,variant) %>",
+        "gtinCode" : "<%- gtinCode(article, variant)  %>",
+        "importCode" : "<%- importCode(article,variant) %>",
+        "piecesCount" : "<%- product.base.fact.numberOfPieces %>",
+        "packMode" : "<%- product.base.fact.salesMode %>",
+        "importedBy" : "<%- imporedBy(article)  %>",
+        "manufacturedBy" : "<%- manufacturedBy(article) %>",
+        "marketedBy" : "<%- imporedBy(article) %>",
+        "closure" : "<%-  %>"
+    },
+                <%_ } _%>
+        <%_ } _%>
+<%_ } _%>

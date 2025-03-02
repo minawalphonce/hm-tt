@@ -1,0 +1,70 @@
+ <%_ 
+    const productNameLong = product.presentation.productNameLong.find(item => item.locale === locale);
+    const sellableVariant = article.articleInformation.base.sales.sellableItem.variants.find(item => item.variantId === variant.variantId);
+    const gtin = sellableVariant.globalTradeItemNumber.globalTradeItemNumberType.find(item => seasons.includes(item.season) && item.GTINCategory === 'IE');
+    const productGroupsValue = (() => {
+        const productGroupsMapping = {
+            "office":	    "Work",  
+            "wear":	    "Occasion",  
+            "casual":	  "Casual",  
+            "lounge":	 "Evening",  
+            "costume":	"Occasion",  
+            "party":	"Occasion",  
+            "party":	"Occasion",  
+            "sport":	  "Active",  
+            "beach":	  "Casual",  
+            "formal":	    "Work",  
+            "school":	  "Casual",  
+            "wedding":	"Occasion"
+        }
+        const productGroupsKeys = Object.keys(productGroupsMapping);
+        const productGroupHMValue = product.presentation.productContext.find(item => productGroupsKeys.includes(item.key));
+        if(productGroupHMValue) {
+            return productGroupsMapping[productGroupHMValue.key];
+        }
+    })();
+
+    const seasonCode = (() => {
+        //An even product season is always fall,
+        //an uneven product season is always spring
+        return parseInt(article.articleInformation.seasons[0].slice(4)) % 2 === 0 ? "Fall" : "Spring";
+    })();
+
+    const seasonYear = (()=>{
+        const sortedSeason = article.articleInformation.seasons.map(s => parseInt(s.slice(0,4))).sort();
+        return sortedSeason[sortedSeason.length-1];
+    })();
+    
+     const season = (()=>{
+        const sortedSeason = article.articleInformation.seasons.sort();
+        return sortedSeason[sortedSeason.length-1];
+    })();
+_%>
+    "core" : {
+        "*Style Code": "<%= variant.variantId %>",
+        "*Style Description": "<%=productNameLong.value%>",
+        "*Item SKU": "<%=variant.variantId%>",
+        "*Brand": "H&M",
+        "*EAN": "<%=gtin.GTIN%>",
+        "*TD" : 0,
+        "*MRP​" : <%=article.articleInformation.base.sales.sellPrice?.salesMarkets[0].channels[0].prices[0].priceValue || 0%>,
+        "*HSN" : "<%=sellableVariant.salesData.salesDataType[0].commodityCode%>",
+        "*Product Groups" : "<%= productGroupsValue %>",
+        "*Fashion Groups" : "Fashion",
+        "--season" : "<%= season %>",
+        "*Season Code": "<%= seasonCode %>",
+        "*Season Year" : "<%= seasonYear %>",
+        "*Size" : "<%= variant.size.sizeName %>",
+        "*articleDimensionsUnitHeight" : 10,
+        "*ArticleDimensionsUnitLength​" : 10,
+        "*ArticleDimensionsUnitWidth​" : 10,
+        "*ArticleDimensionsUnitLengthUOM" : "CM",
+        "*ArticleDimensionsUnitweight​" : 50,
+        "*ArticleDimensionsUnitWeightUOM​" : "GRAM",
+        "*packageDimensionsHeight" : 10,
+        "*packageDimensionsLength" : 10,
+        "*packageDimensionsWidth" : 1,
+        "*packageDimensionsLengthUOM" : "CM",
+        "*packageDimensionsWeight" : 50,
+        "*packageDimensionsWeightUOM" : "GRAM"
+    }

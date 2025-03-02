@@ -1,0 +1,165 @@
+<%_
+    function getLocaleFromProp(prop){
+        if(Array.isArray(prop)){
+            const i = prop.find(v => v.locale === locale);
+            if(i && i.value)
+                return i?.value;
+            return prop.map(item => item.values?.find(v => v.locale === locale)?.value).join(",");
+        }
+        else {
+            return prop?.values?.find(v => v.locale === locale).value;
+        }
+    }
+
+    function manufacturedBy(article){
+        const pu = article.articleInformation.base.order.supplierSummary?.salesMarkets[0]?.channels[0]?.supplierAndProductionUnits
+            ?.filter( spu => {
+                return spu?.productionUnits?.some(pu => pu.productionUnitTypes.some( put => put.typeId === 101) )
+            })
+            [0]?.productionUnits?.filter(pu => pu.productionUnitTypes.some( put => put.typeId === 101) )[0];
+        if(pu){
+            return `${pu.productionUnitName} ${pu.address.addressStreetLine1 || ""} ${pu.address.addressStreetLine2 || ""} ${pu.address.city || ""} ${pu.address.postalCode || ""}`
+        }   
+    }
+
+     function imporedBy(article){
+        
+        const sortByMonthYear = (arr, prop = "importedDate") => {
+            return arr?.sort((a,b)=>{
+                return new Date("01-" + a[prop]) - new Date("01-" + b[prop]);
+            }) || [];
+        }
+        return sortByMonthYear(article.articleInformation.base.order.supplierSummary?.salesMarkets[0]?.channels[0]?.importerInfo)[0]?.importedBy;
+    }
+
+    function importCode(article,variant){
+        const sellableVariant = article.articleInformation.base.sales.sellableItem.variants.find(item => item.variantId === variant.variantId);
+        return sellableVariant?.salesData?.salesDataType[0]?.importCode;
+    }
+
+    const sellableVariant = article.articleInformation.base.sales.sellableItem.variants.find(item => item.variantId === variant.variantId);
+    function gtinCode(article, variant){
+        const sellableVariant = article.articleInformation.base.sales.sellableItem.variants.find(item => item.variantId === variant.variantId);
+        const gtin = sellableVariant?.globalTradeItemNumber?.globalTradeItemNumberType?.find(item => seasons.includes(item.season) && item.GTINCategory === 'IE');
+        return gtin?.GTIN;
+    }
+
+    function composition(article){
+        const compositions = article.articleInformation.presentation?.articleCompositionList?.compositions;
+        return compositions?.map(cmp => {
+            const material = cmp.materials?.map(mat => `${mat.percentage}% ${getLocaleFromProp(mat.values)}`)
+            return `${getLocaleFromProp(cmp?.compositionType) || ""} ${material}`;
+        }).join(", ")
+    }
+    function images(article, size = "extra_extra_large"){
+        return article.articleInformation.asset.assets
+                    ?.flatMap(asset => {
+                        return asset.locations.filter(l => l.id === "PublicAssetService").flatMap(l => l?.renditions)
+                    })
+                    ?.filter(rendition => rendition?.type === size)
+                    ?.map(rendition => rendition?.path);
+    }
+
+    const patternMap = {
+        "Floral":	"Floral",
+        "Solid colour":	"Solid",
+        "Harlequin-patterned" :	"Checks",
+        "Dogtooth-patterned" :	"Houndstooth",
+        "Pinstriped":	"Stripes",
+        "Crocodile-patterned":	"Reptilian",
+        "Leopard-print":	"Animal",
+        "Marbled":	"Abstract",
+        "Patterned": "Textured",
+        "Snakeskin-patterned":	"Reptilian",
+        "Paisley-patterned":	"Paisley",
+        "Spotted":	"Micro Print/Polka-dot",
+        "Striped" :	"Stripes",
+        "Checked":	"Checks",
+        "Tortoiseshell-patterned" :	"Tortoiseshell",
+        "Zigzag-patterned" :	"Chevrons/Herringbone",
+        "Tiger-striped" : 	"Stripes",
+        "Zebra-print" :	"Animal",
+        "Argyle-patterned" :	"Checks",
+        "Herringbone-patterned":	"Herringbone",
+        "Block-coloured" : "Block Print",
+        "Giraffe-print": 	"Animal",
+        "Rainbow-striped":	"Stripes",
+        Default : "Solid"
+    }
+_%>
+"Style Code": "<%= product.productId %>",
+"Style Description" : "<%= product.base.fact.productName %>",
+"Item SKU" : "<%= variant.variantId %>",
+"Brand" : "<%= product.corporateBrandId %>",
+"Source CategoryId" : "<%= product.online?.mainCategory?.code %>",
+"Target CategoryId" : "Women_Western Wear_Dresses_830316007",
+"TD" : "3",
+"EAN" : "<%= gtinCode(article, variant) %>",
+"MRP" : "<%= product.base.sales.sellPrice?.salesMarkets[0].channels[0].priceValue || 0 %>",
+"Fashion Groups" : "Fashion",
+"Size" : "<%= variant.size.sizeName %>",
+"articleDimensionsUnitHeight" : 10,
+"articleDimensionsUnitLength" : 10,
+"articleDimensionsUnitWidth" : 10,
+"articleDimensionsUnitLengthUOM" : "CM",
+"articleDimensionsUnitWeight" : 50,
+"articleDimensionsUnitWeightUOM" : "GRAM",
+"packageDimensionsHeight" : 60,
+"packageDimensionsLength" : 60,
+"packageDimensionsWidth" : 60,
+"packageDimensionsLengthUOM" : "CM",
+"packageDimensionsWeight" : 60,
+"packageDimensionsWeightUOM" : "GRAM",
+"Highlight" : "<%= getLocaleFromProp(product.presentation.productNameLong) %>",
+"Hidden Detail" : "<%= getLocaleFromProp(product.presentation.productNameShort) %>",
+"Additional Information 1" : "<% getLocaleFromProp(product.presentation.productLongDescription) %>",
+"Additional Information 2" : "<% getLocaleFromProp(product.presentation.productLongDescription) %>",
+"Component Count" : <%= product.base.fact.numberOfPieces %>,
+"Country of Origin" : "<%= article.articleInformation.base.order.summary.salesMarkets[0].channels[0]?.supplierProduction?.countriesOfProduction?.map(cop => cop?.countryOfProductionName)?.join(",")  %>",
+"HSN" : "<%=importCode(article, variant)  %>",
+"Manufactured By" : "<%= manufacturedBy(article) %>",
+"Net Quantity" : "<%= product.base.fact.salesMode %>",
+"Trend Theme" : "<%= product.base.productGroup?.productType?.productTypeName %>",
+"Color Family" : "<%= getLocaleFromProp(article.articleInformation.presentation.articlePresentationColorGroup) %>",
+"Color Shade" : "Bright",
+"Disclaimer" : "<%= getLocaleFromProp(article.articleInformation.presentation?.articleDisclaimer) %>",
+"Fabric Detail" : "<%= composition(article) %>",
+"Pattern" :"<%=patternMap[getLocaleFromProp(article.articleInformation.presentation.articlePattern)] || patternMap.Default %>",
+"Primary color" : "<%=getLocaleFromProp(article.articleInformation.presentation.articlePresentationColorGroup)%>",
+"Size Format" : "EU",
+"Size Group" : "<%= getLocaleFromProp(product.presentation.productSizeCategory) %>",
+"Wash Care" : "<%= getLocaleFromProp(article.articleInformation.presentation.articleCareInstructionsWashingInstruction)%>",
+"Size worn by Model" : "<%= variant.size.sizeName %>",
+"Care" : "<%= getLocaleFromProp(article.articleInformation.presentation.articleAdditionalCareInstructions) %>",
+"Collar" : "<%= getLocaleFromProp(product.presentation.productCollarStyle) %>",
+"Fit" : "<%= getLocaleFromProp(product.presentation.productFit) %>",
+"Length" : "Medium",
+"Sleeve" : "<%= getLocaleFromProp(product.presentation.productSleeveLength) %>",
+"StandardSize" : "<%=variant.size.defaultSizeName %>",
+"Hemline" : "Straight",
+<%_ 
+    const imgs = images(article);
+_%>
+"MODEL" : "<%- imgs[0] %>",
+<%_
+    for(let imgNdx = 1; imgNdx < 8; imgNdx++){
+_%>
+"MODEL<%- imgNdx %>" : "<%- imgs[imgNdx] %>",
+<%_ } _%>
+"SWATCH" : "",
+"importedBy" : "<%- imporedBy(article)  %>",
+"manufacturedBy" : "<%- manufacturedBy(article) %>",
+"marketedBy" : "<%- imporedBy(article) %>",
+
+"Product Groups" : "<%- getLocaleFromProp(product.presentation.productContext) %>",
+"Character" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articlePrintText) %>",
+"Package Contains" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleComplianceDetails?.frenchAntiWasteLawForaCircularEconomy?.packaging?.packagingAggregatedRecycledMaterialsDescription) %>",
+"Model Height" : "<%- article.articleInformation.assets?.models?.modelHeight %>",
+"Neckline"	    : "<%- getLocaleFromProp(product.presentation.productNecklineStyle) %>",
+"Product Name" : "<%- getLocaleFromProp(product.presentation?.productNameLong) || getLocaleFromProp(article.articleInformation.presentation?.articleNameLong) %>",
+"Sport"	    : "<%- getLocaleFromProp(product.presentation.productSportsActivity) %>",
+"Style Type" : "<%- getLocaleFromProp(article.articleInformation.presentation?.articleStyle) %>",
+"Features"	       : "<%- getLocaleFromProp(product.presentation.productFeature) %>",
+
+"Dress length"	    : "<%- getLocaleFromProp(product.presentation.productGarmentLength) %>",
+"Lining" : "<%= composition(article) %>"

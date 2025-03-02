@@ -1,0 +1,17 @@
+{%- liquid 
+    assign productNameLongfilter = "item.locale == '" | concat: locale | concat: "'"
+    assign productNameLong = product.presentation.productNameLong | find_exp: "item", productNameLongfilter
+
+    assign selleableVariantFilter = "item.variantId == '" | concat: variant.variantId | concat: "'"
+    assign selleableVariant = article.articleInformation.base.sales.sellableItem.variants | find_exp : "item", selleableVariantFilter
+
+    assign gtinFilter = "item.season == '" | concat: season | concat: "'"
+    assign gtin = selleableVariant.globalTradeItemNumber.globalTradeItemNumberType | find_exp : "item", gtinFilter | find_exp: "item", "item.GTINCategory == 'IE'"
+-%}
+        "*Style Code" : "{{ variant.variantId }}",
+        "*Style Description" : "{{ productNameLong.value }}",
+        "*Item SKU" : "{{ variant.variantId }}",
+        "*Brand" : "H&M",
+        "*EAN" : "{{ gtin.GTIN }}",
+        "*TD" : 0,
+        "*MRP​" : {{article.articleInformation.base.sales.sellPrice.salesMarkets[0].channels[0].prices[0].priceValue | default: 0}}

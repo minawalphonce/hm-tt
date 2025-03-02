@@ -1,0 +1,7 @@
+<%_ for(const article of product.tree.trees[0].articles) { _%> 
+        <%_ if(article.articleInformation.seasons.some(s => seasons.includes(s))) { _%>
+                <%_ for(const variant of article.articleInformation.base.order.summary.salesMarkets[0].channels[0].variants) { _%>
+<%- include("router.ejs", { product,variant,article, seasons,locale }) %>
+                <%_ } _%>
+        <%_ } _%>
+<%_ } _%>
